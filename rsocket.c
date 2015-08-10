@@ -107,14 +107,34 @@ static void ssa_format_event(char *str,const size_t str_size, const int event)
 
 ssize_t rrecv(int socket, void *buf, size_t len, int flags)
 {
-	write_log("rrecv rsocket %d len %d buf %p\n", socket, buf, len);
-	return orig_rrecv(socket, buf, len, flags);
+	int ret, error;
+	char descr[256] = {};
+
+	ret = orig_rrecv(socket, buf, len, flags);
+	if (ret >= 0) {
+		write_log("rrecv rsocket %d len %d buf %p ret %d\n", socket, len, buf, ret);
+	} else {
+		error = errno;
+		strerror_r(error, descr, sizeof(descr));
+		write_log("rrecv rsocket %d len %d buf %p ret %d errno %d (%s)\n", socket, len, buf, ret, error, descr);
+	}
+	return ret;
 }
 
 ssize_t rsend(int socket, const void *buf, size_t len, int flags)
 {
-	write_log("rsend rsocket %d len %d buf %p\n", socket, buf, len);
-	return orig_rsend(socket, buf, len, flags);
+	int ret, error;
+	char descr[256] = {};
+
+	ret =  orig_rsend(socket, buf, len, flags);
+	if (ret >= 0) {
+		write_log("rsend rsocket %d len %d buf %p ret %d\n", socket, len, buf, ret);
+	} else {
+		error = errno;
+		strerror_r(error, descr, sizeof(descr));
+		write_log("rsend rsocket %d len %d buf %p ret %d errno %d (%s)\n", socket, len, buf, ret, error, descr);
+	}
+	return ret;
 }
 
 int rpoll(struct pollfd *fds, nfds_t nfds, int timeout)
@@ -125,16 +145,18 @@ int rpoll(struct pollfd *fds, nfds_t nfds, int timeout)
 	write_log("rpoll len %d ", nfds);
 	for (i = 0; i < nfds; ++i)
 	{
-		ssa_format_event(msg, sizeof(msg), fds[i].events);
-		write_log("%d (%s) ", fds[i].fd, msg);
+		if (fds[i].fd > 0) {
+			ssa_format_event(msg, sizeof(msg), fds[i].events);
+			fprintf(stderr, "%d (%s) ", fds[i].fd, msg);
+		}
 	}
-	write_log("\n");
+	fprintf(stderr,"\n");
 	return orig_rpoll(fds, nfds, timeout);
 }
 
 void _init(void)
 {
-	write_log("Overloading rsocket. \n");
+//	write_log("Overloading rsocket. \n");
 
 	orig_rrecv = dlsym(RTLD_NEXT, "rrecv");
 	orig_rsend = dlsym(RTLD_NEXT, "rsend");
