@@ -139,10 +139,10 @@ ssize_t rsend(int socket, const void *buf, size_t len, int flags)
 
 int rpoll(struct pollfd *fds, nfds_t nfds, int timeout)
 {
-	int i;
+	int i ,ret;
 	char msg[128];
 
-	write_log("rpoll len %d ", nfds);
+	write_log("rpoll n %d ", nfds);
 	for (i = 0; i < nfds; ++i)
 	{
 		if (fds[i].fd > 0) {
@@ -151,7 +151,20 @@ int rpoll(struct pollfd *fds, nfds_t nfds, int timeout)
 		}
 	}
 	fprintf(stderr,"\n");
-	return orig_rpoll(fds, nfds, timeout);
+
+	ret = orig_rpoll(fds, nfds, timeout);
+	write_log("rpoll ret %d ", ret);
+
+	for (i = 0; i < nfds; ++i)
+	{
+		if (fds[i].fd > 0 && fds[i].revents) {
+			ssa_format_event(msg, sizeof(msg), fds[i].revents);
+			fprintf(stderr, "%d (%s) ", fds[i].fd, msg);
+		}
+	}
+	fprintf(stderr,"\n");
+
+	return ret;
 }
 
 void _init(void)
